@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const Login = () => {
-  const [phone, setPhone] = useState('');
+  const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -11,10 +11,11 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/login', { phone, password });
+      const res = await axios.post('http://localhost:5000/api/auth/login', { loginId, password });
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       if (res.data.user.role === 'client') navigate('/client');
+      else if (res.data.user.role === 'escrow') navigate('/escrow');
       else navigate('/freelancer');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
@@ -33,8 +34,8 @@ const Login = () => {
 
         <form onSubmit={handleLogin}>
           <div className="form-group">
-            <label className="form-label">Phone Number</label>
-            <input type="text" className="form-control" value={phone} onChange={e => setPhone(e.target.value)} placeholder="e.g. 0712345678" required />
+            <label className="form-label">Phone or Email</label>
+            <input type="text" className="form-control" value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="e.g. 0712345678 or email@test.com" required />
           </div>
           <div className="form-group">
             <label className="form-label">Password</label>

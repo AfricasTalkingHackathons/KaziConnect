@@ -1,0 +1,22 @@
+=== Initial Menu ===
+CON Welcome to KaziConnect
+1. Register
+2. View Matched Jobs
+3. My Active Jobs
+
+=== Register Menu ===
+CON Enter your name:
+
+=== Complete Registration ===
+END Registration successful, NewUser!
+
+=== Duplicate Registration ===
+END You are already registered. Please use the web app to manage your account.
+
+=== View Jobs ===
+END 1. Web Developer - 90% Match
+2. Graphic Designer - 80% Match
+(Log in to web dashboard to apply)
+
+=== Active Jobs ===
+END You have no active jobs currently.

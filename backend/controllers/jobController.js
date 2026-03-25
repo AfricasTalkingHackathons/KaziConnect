@@ -3,10 +3,11 @@ const { sendSMS } = require('../utils/sms');
 
 exports.createJob = async (req, res) => {
   try {
-    const { title, description, budget, deadline, required_skills, client_id } = req.body;
+    const { title, description, budget, deadline, required_skills, client_id, requires_escrow } = req.body;
+    const isEscrowReq = requires_escrow !== undefined ? requires_escrow : true;
     const result = await db.query(
-      'INSERT INTO jobs (title, description, budget, deadline, required_skills, client_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [title, description, budget, deadline, JSON.stringify(required_skills || []), client_id]
+      'INSERT INTO jobs (title, description, budget, deadline, required_skills, client_id, requires_escrow) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [title, description, budget, deadline, JSON.stringify(required_skills || []), client_id, isEscrowReq ? 1 : 0]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -111,6 +112,109 @@ exports.getFreelancerJobs = async (req, res) => {
       [id]
     );
     res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Escrow Automation Logic
+exports.depositEscrow = async (req, res) => {
+  try {
+    const { id } = req.params; 
+    const { client_id, freelancer_id, amount, escrow_agent_id } = req.body;
+    
+    // Only insert escrow transaction if amount > 0 or it's genuinely escrow.
+    // If not using escrow, this acts as simple acceptance.
+    if (escrow_agent_id) {
+      const result = await db.query(
+        "INSERT INTO escrow_transactions (job_id, client_id, freelancer_id, amount, status, escrow_agent_id) VALUES ($1, $2, $3, $4, 'held', $5) RETURNING *",
+        [id, client_id, freelancer_id, amount, escrow_agent_id]
+      );
+    }
+    
+    await db.query("UPDATE jobs SET status = 'in_progress' WHERE id = $1", [id]);
+    
+    // SMS Notification
+    try {
+      const fResult = await db.query("SELECT phone FROM users WHERE id = $1", [freelancer_id]);
+      if (fResult.rows.length > 0) sendSMS(fResult.rows[0].phone, `Great news! Your proposal was accepted. You can start working on the job!`);
+    } catch(e) {}
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.releaseEscrow = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await db.query(
+      "UPDATE escrow_transactions SET status = 'released' WHERE job_id = $1 RETURNING *",
+      [id]
+    );
+    await db.query("UPDATE jobs SET status = 'completed' WHERE id = $1", [id]);
+    
+    // SMS Notification
+    try {
+      if (result.rows.length > 0) {
+        const { freelancer_id, amount } = result.rows[0];
+        const fResult = await db.query("SELECT phone FROM users WHERE id = $1", [freelancer_id]);
+        if (fResult.rows.length > 0) sendSMS(fResult.rows[0].phone, `Payment Released: $${amount} has been released from Escrow to your account!`);
+      }
+    } catch(e) {}
+
+    res.json(result.rows[0]? result.rows[0] : {});
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.disputeEscrow = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await db.query(
+      "UPDATE escrow_transactions SET status = 'disputed' WHERE job_id = $1 RETURNING *",
+      [id]
+    );
+    await db.query("UPDATE jobs SET status = 'disputed' WHERE id = $1", [id]);
+    res.json(result.rows[0]? result.rows[0] : {});
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.getAgentDisputes = async (req, res) => {
+  try {
+    const { agent_id } = req.params;
+    const result = await db.query(
+      `SELECT j.*, e.amount as disputed_amount 
+       FROM jobs j 
+       JOIN escrow_transactions e ON j.id = e.job_id 
+       WHERE e.escrow_agent_id = $1 AND j.status = 'disputed'`,
+      [agent_id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.resolveEscrow = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { resolution, agent_id } = req.body; // resolution: 'released' or 'refunded'
+    const result = await db.query(
+      "UPDATE escrow_transactions SET status = $1, escrow_agent_id = $2 WHERE job_id = $3 RETURNING *",
+      [resolution, agent_id, id]
+    );
+    await db.query("UPDATE jobs SET status = 'resolved' WHERE id = $1", [id]);
+    res.json(result.rows[0]? result.rows[0] : {});
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

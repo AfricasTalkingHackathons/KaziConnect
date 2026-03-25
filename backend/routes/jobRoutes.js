@@ -5,9 +5,21 @@ const {
   getJobById,
   applyForJob,
   getApplications,
-  getFreelancerJobs
+  getFreelancerJobs,
+  depositEscrow,
+  releaseEscrow,
+  disputeEscrow,
+  resolveEscrow,
+  getAgentDisputes
 } = require('../controllers/jobController');
 const router = express.Router();
+
+// Escrow routes
+router.get('/escrow/disputes/:agent_id', getAgentDisputes);
+router.post('/:id/escrow/deposit', depositEscrow);
+router.post('/:id/escrow/release', releaseEscrow);
+router.post('/:id/escrow/dispute', disputeEscrow);
+router.post('/:id/escrow/resolve', resolveEscrow);
 
 // Client routes
 router.post('/', createJob);

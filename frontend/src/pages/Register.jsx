@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const Register = () => {
-  const [formData, setFormData] = useState({ name: '', phone: '', password: '', role: 'freelancer', skills: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', phone: '', password: '', role: 'freelancer', skills: '' });
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
@@ -32,6 +32,10 @@ const Register = () => {
             <input type="text" className="form-control" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
           </div>
           <div className="form-group">
+             <label className="form-label">Email Address</label>
+             <input type="email" className="form-control" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required />
+          </div>
+          <div className="form-group">
              <label className="form-label">Phone Number</label>
              <input type="text" className="form-control" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="07xxxxxxxx" required />
           </div>
@@ -44,6 +48,7 @@ const Register = () => {
              <select className="form-control" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}>
                <option value="freelancer">Work as a Freelancer</option>
                <option value="client">Hire Talent (Client)</option>
+               <option value="escrow">Resolve Disputes (Escrow Agent)</option>
              </select>
           </div>
           {formData.role === 'freelancer' && (

@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ClientDashboard from './pages/ClientDashboard';
 import FreelancerDashboard from './pages/FreelancerDashboard';
+import EscrowDashboard from './pages/EscrowDashboard';
 import './index.css';
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/client/*" element={<ClientDashboard />} />
         <Route path="/freelancer/*" element={<FreelancerDashboard />} />
+        <Route path="/escrow/*" element={<EscrowDashboard />} />
       </Routes>
     </BrowserRouter>
   );

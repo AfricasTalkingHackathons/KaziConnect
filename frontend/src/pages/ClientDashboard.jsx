@@ -6,16 +6,27 @@ import { Users, PlusCircle } from 'lucide-react';
 const ClientDashboard = () => {
   const [jobs, setJobs] = useState([]);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ title: '', description: '', budget: '', deadline: '', required_skills: '' });
+  const [formData, setFormData] = useState({ title: '', description: '', budget: '', deadline: '', required_skills: '', requires_escrow: true });
   const [selectedJobId, setSelectedJobId] = useState(null);
   const [applications, setApplications] = useState([]);
+  const [escrowAgents, setEscrowAgents] = useState([]);
+  const [selectedAgentId, setSelectedAgentId] = useState('');
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   useEffect(() => {
     if (!user.id || user.role !== 'client') navigate('/login');
     fetchJobs();
+    fetchEscrows();
   }, []);
+
+  const fetchEscrows = async () => {
+    try {
+      const res = await axios.get('http://localhost:5000/api/auth/escrows');
+      setEscrowAgents(res.data);
+      if (res.data.length > 0) setSelectedAgentId(res.data[0].id);
+    } catch (e) { console.error(e); }
+  };
 
   const fetchJobs = async () => {
     try {
@@ -36,13 +47,49 @@ const ClientDashboard = () => {
     }
   };
 
+  const acceptProposal = async (app, job, useEscrow = true) => {
+    if (useEscrow && !selectedAgentId) return alert('Please select an Escrow Agent before depositing funds.');
+    try {
+      await axios.post(`http://localhost:5000/api/jobs/${job.id}/escrow/deposit`, {
+        client_id: user.id,
+        freelancer_id: app.freelancer_id,
+        amount: job.budget,
+        escrow_agent_id: useEscrow ? selectedAgentId : null
+      });
+      alert(useEscrow ? 'Funds safely deposited into Escrow!' : 'Proposal accepted successfully!');
+      fetchJobs();
+    } catch (err) {
+      alert(useEscrow ? 'Error depositing funds' : 'Error accepting proposal');
+    }
+  };
+
+  const releaseFunds = async (jobId) => {
+    try {
+      await axios.post(`http://localhost:5000/api/jobs/${jobId}/escrow/release`);
+      alert('Funds released to Freelancer!');
+      fetchJobs();
+    } catch (err) {
+      alert('Error releasing funds');
+    }
+  };
+
+  const raiseDispute = async (jobId) => {
+    try {
+      await axios.post(`http://localhost:5000/api/jobs/${jobId}/escrow/dispute`);
+      alert('Dispute raised. An Escrow Agent will review it soon.');
+      fetchJobs();
+    } catch (err) {
+      alert('Error raising dispute');
+    }
+  };
+
   const handleCreateJob = async (e) => {
     e.preventDefault();
     try {
       const payload = { ...formData, client_id: user.id, required_skills: formData.required_skills.split(',').map(s => s.trim()).filter(Boolean) };
       await axios.post('http://localhost:5000/api/jobs', payload);
       setShowForm(false);
-      setFormData({ title: '', description: '', budget: '', deadline: '', required_skills: '' });
+      setFormData({ title: '', description: '', budget: '', deadline: '', required_skills: '', requires_escrow: true });
       fetchJobs();
     } catch (err) {
       alert(err.response?.data?.message || 'Error creating job');
@@ -92,6 +139,10 @@ const ClientDashboard = () => {
               <label className="form-label">Required Skills (comma separated)</label>
               <input type="text" className="form-control" value={formData.required_skills} onChange={e => setFormData({...formData, required_skills: e.target.value})} />
             </div>
+            <div className="form-group" style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '12px' }}>
+              <input type="checkbox" id="requires_escrow" checked={formData.requires_escrow} onChange={e => setFormData({...formData, requires_escrow: e.target.checked})} style={{ width: '1.25rem', height: '1.25rem', cursor: 'pointer' }} />
+              <label htmlFor="requires_escrow" style={{ margin: 0, cursor: 'pointer', fontWeight: '500' }}>Require Escrow Protection (Securely lock funds & select an agent)</label>
+            </div>
             <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
               <button type="button" onClick={() => setShowForm(false)} className="btn btn-outline">Cancel</button>
               <button type="submit" className="btn btn-primary">Post Job</button>
@@ -123,7 +174,62 @@ const ClientDashboard = () => {
                   <span className="badge">Match: {app.match_score}%</span>
                 </div>
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Phone: {app.phone}</p>
-                <button className="btn btn-primary" style={{ marginTop: '1rem', width: '100%', padding: '0.5rem' }}>Accept Proposal</button>
+                
+                {jobs.find(j => j.id === app.job_id)?.status === 'open' && (
+                  jobs.find(j => j.id === app.job_id).requires_escrow ? (
+                    <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <select 
+                        className="form-control" 
+                        value={selectedAgentId} 
+                        onChange={e => setSelectedAgentId(e.target.value)}
+                      >
+                        <option value="">Select Escrow Agent</option>
+                        {escrowAgents.map(agent => (
+                          <option key={agent.id} value={agent.id}>{agent.name} ({agent.phone})</option>
+                        ))}
+                      </select>
+                      <button 
+                        onClick={() => acceptProposal(app, jobs.find(j => j.id === app.job_id), true)}
+                        className="btn btn-primary" 
+                        style={{ width: '100%', padding: '0.5rem' }}>
+                        Accept & Deposit Escrow
+                      </button>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => acceptProposal(app, jobs.find(j => j.id === app.job_id), false)}
+                      className="btn btn-primary" 
+                      style={{ marginTop: '1rem', width: '100%', padding: '0.5rem' }}>
+                      Accept Proposal directly
+                    </button>
+                  )
+                )}
+                
+                {jobs.find(j => j.id === app.job_id)?.status === 'in_progress' && (
+                  jobs.find(j => j.id === app.job_id).requires_escrow ? (
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                      <button 
+                        onClick={() => releaseFunds(app.job_id)}
+                        className="btn btn-primary" 
+                        style={{ flex: 1, padding: '0.5rem', background: 'var(--success)' }}>
+                        Release Funds
+                      </button>
+                      <button 
+                        onClick={() => raiseDispute(app.job_id)}
+                        className="btn btn-outline" 
+                        style={{ flex: 1, padding: '0.5rem', borderColor: '#ef4444', color: '#ef4444' }}>
+                        Dispute
+                      </button>
+                    </div>
+                  ) : (
+                    <button 
+                      className="btn btn-primary" 
+                      style={{ marginTop: '1rem', width: '100%', padding: '0.5rem', background: 'var(--success)', opacity: 0.8, cursor: 'not-allowed' }}
+                      disabled>
+                      Worker Active (No Escrow)
+                    </button>
+                  )
+                )}
               </div>
             ))}
           </div>

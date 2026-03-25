@@ -1,0 +1,19 @@
+--- Start (text: '') ---
+CON Welcome to KaziConnect
+1. Register
+2. View Matched Jobs
+3. My Active Jobs
+
+--- Option 1 (text: '1') ---
+CON Enter your name:
+
+--- Register (text: '1*TestUser*1') ---
+END Registration failed. Try again later.
+
+--- Matched Jobs (text: '2') ---
+END 1. Web Developer - 90% Match
+2. Graphic Designer - 80% Match
+(Log in to web dashboard to apply)
+
+--- Active Jobs (text: '3') ---
+END You have no active jobs currently.

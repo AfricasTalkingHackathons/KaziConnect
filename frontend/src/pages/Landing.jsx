@@ -36,8 +36,8 @@ const Landing = () => {
           </div>
           <div className="glass-panel" style={{ padding: '2.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <Globe color="var(--primary)" size={48} style={{ marginBottom: '1.5rem' }} />
-            <h3>USSD & SMS Access</h3>
-            <p style={{ color: 'var(--text-muted)', marginTop: '1rem' }}>No internet? No problem. Access jobs, accept offers, and manage clients via any basic feature phone.</p>
+            <h3>USSD (*789*5960#) & SMS</h3>
+            <p style={{ color: 'var(--text-muted)', marginTop: '1rem' }}>No internet? No problem. Dial *789*5960# to access jobs, accept offers, and manage clients via any basic feature phone.</p>
           </div>
           <div className="glass-panel" style={{ padding: '2.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <Briefcase color="#ec4899" size={48} style={{ marginBottom: '1.5rem' }} />

@@ -12,10 +12,14 @@ exports.sendSMS = async (to, message) => {
             console.log(`[MOCK SMS] To: ${to} | Message: ${message}`);
             return;
         }
-        const result = await sms.send({
+        const sendOptions = {
             to: [to],
             message: message
-        });
+        };
+        if (process.env.AT_SENDER_ID) {
+            sendOptions.from = process.env.AT_SENDER_ID;
+        }
+        const result = await sms.send(sendOptions);
         console.log("SMS Sent: ", result);
     } catch (err) {
         console.error("SMS Error: ", err);
